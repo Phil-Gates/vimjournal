@@ -1,5 +1,5 @@
 # vimjournal
-Write journals with the Markdown file format using vim.
+Write journals with the Markdown file format using vim. (for linux based operating systems)
 
 # Installation
 ```
