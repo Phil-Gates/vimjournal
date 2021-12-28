@@ -1,0 +1,238 @@
+#!/bin/bash
+
+if ! [ "$(cat ~/.journals/.starthere 2> /dev/null)" ]; then
+    declare mega_cur_dir=".journals";
+else
+    declare mega_cur_dir="$(cat ~/.journals/.starthere)";
+fi
+if [ "$1" ]; then
+    declare arg_1="$1";
+else
+    declare arg_1="NONE"
+fi
+if [ "$2" ]; then
+    declare arg_2="$2";
+else
+    declare arg_2="NONE"
+fi
+declare date=`date +"%Y-%m-%d"`;
+
+new_journal () {
+    if [[ $1 == *"-"* ]] || [[ $1 == *"_"* ]] || [[ $1 == *" "* ]]; then
+        echo -e "\e[1;31mOops! Don't use hyphens (-) or underscores (_) or spaces ( ) in your journal name. Use CamelCase.\e[0m";
+        exit;
+    else
+        local j_name="${1}-${date}.md";
+    fi
+    if [ -f ~/$mega_cur_dir/$j_name ]; then
+        echo -e "\e[1;31mThat journal already exists! Use \`vimjournal -e $1-$date' to edit it.\e[0m";
+    else
+        if ! [ -d ~/$mega_cur_dir/ ]; then
+            mkdir ~/$mega_cur_dir;
+        fi
+        echo -e "# ${1}\n" >> ~/$mega_cur_dir/$j_name;
+        vim ~/$mega_cur_dir/$j_name;
+    fi 
+}
+
+edit_journal () {
+    if [ -d ~/$mega_cur_dir/ ]; then
+        local j_name="${1}.md";
+        if [ -f ~/$mega_cur_dir/$j_name ]; then
+            vim ~/$mega_cur_dir/$j_name;
+        else
+            echo -e "\e[1;31mThat journal does not exist! Make a new journal with \`vimjournal -n $1' to edit it.\e[0m";
+        fi
+    else
+        echo -e "\e[1;31mMake journals before editing them! Make a new journal with \`vimjournal -n ${j_name} to edit it.\e[0m"
+    fi
+}
+
+edit_all () {
+    local cmd="vim";
+    if [ -d ~/$mega_cur_dir/ ]; then
+        for journal in $(ls ~/$mega_cur_dir/*$1* 2> /dev/null)
+        do
+            cmd+=" $journal";
+        done
+    else
+        echo -e "\e[1;31mMake journals before searching! Make a new journal with \`vimjournal -n <journal name>'.\e[0m";
+    fi 
+    eval $cmd
+}
+
+find_journal () {
+    if [ -d ~/$mega_cur_dir/ ]; then
+        for journal in $(ls ~/$mega_cur_dir/*$1* 2> /dev/null)
+        do
+            echo $(basename $journal | cut -d. -f1);
+        done
+    else
+        echo -e "\e[1;31mMake journals before searching! Make a new journal with \`vimjournal -n <journal name>'.\e[0m";
+    fi
+}
+
+list_journals () {
+    if [ -d ~/$mega_cur_dir/ ]; then
+        for journal in $(ls ~/$mega_cur_dir/)
+        do
+            echo $(basename $journal | cut -d. -f1);
+        done
+    else
+        echo -e "\e[1;31mMake journals before listing! Make a new journal with \`vimjournal -n <journal name>'.\e[0m";
+    fi
+}
+
+find_phrase () {
+    if [ -d ~/$mega_cur_dir/ ]; then
+        for journal in $(ls ~/$mega_cur_dir/)
+        do
+            if grep -q $1 ~/$mega_cur_dir/"$journal"; then
+                echo $(basename "$journal" | cut -d. -f1);
+            fi
+        done
+    else
+        echo -e "\e[1;31mMake journals before finding a phrase! Make a new journal with \`vimjournal -n <journal name>'.\e[0m";
+    fi
+}
+
+rem_journal () {
+    if [ -d ~/$mega_cur_dir/ ]; then
+        if [ -f ~/$mega_cur_dir/"${1}.md" ]; then
+            rm ~/$mega_cur_dir/"${1}.md";
+        else
+            echo -e "\e[1;31mThe journal \`$1' does not exist.\e[0m";
+        fi
+    else
+        echo -e "\e[1;31mMake journals before deleting them!\e[0m";
+    fi
+}
+
+rem_all () {
+    if [ -d ~/$mega_cur_dir ]; then
+        echo -en "\e[1;31mAre you sure you want to remove all journals? [Y/n] \e[0m";
+        read confirmation;
+        if [ "$confirmation" == "Y" ] || [ "$confirmation" == "y" ]; then
+            rm -r ~/$mega_cur_dir;
+        else
+            echo "Abort.";
+        fi
+    fi
+}
+
+change_name () {
+    local new_name;
+    local file_date=${1#*-};
+    if [ -d ~/$mega_cur_dir ]; then
+        if [ -f ~/$mega_cur_dir/"$1.md" ]; then
+            read -p "What to rename journal to? > " new_name;
+            if ! [ -f ~/$mega_cur_dir/"${new_name}-${file_date}.md"]; then
+                mv ~/$mega_cur_dir/"$1.md" ~/$mega_cur_dir/"${new_name}-${file_date}.md";
+            else
+                echo -e "\e[1;31mA file with that name created on the same date exists!\0m";
+            fi
+        else
+            echo -e "\e[1;31mThat journal does not exist!\e[0m";
+        fi
+    else
+        echo -e "\e[1;31mMake journals before changing their names!\e[0m"
+    fi
+}
+
+makesub () {
+    mkdir ~/$mega_cur_dir/"$1";
+}
+
+gotosub () {
+    if [ -d "$mega_cur_dir/$1" ]; then
+        mega_cur_dir+="/$1";
+    else
+        echo -e "\e[1;31mNonexistent subfolder.";
+    fi
+}
+
+rsub () {
+    if [ -d "$mega_cur_dir/$1" ]; then
+        rm -r $mega_cur_dir/$1;
+    else
+        echo -e "\e[1;31mNonexistent subfolder.";
+    fi
+}
+
+mergeall () {
+    for journal in $(ls ~/$mega_cur_dir/ 2> /dev/null)
+    do
+        cat ~/$mega_cur_dir/$journal >> $mega_cur_dir/../"$(basename $mega_cur_dir)_FINAL.md";
+    done
+}
+
+back () {
+    mega_cur_dir="$(echo $mega_cur_dir | rev | cut -d/ -f2- | rev)";
+}
+
+help_msg () {
+    echo -e "\nCommand \`$1' not found.";
+    echo -e "Usage: vimjournal -[neE] <name>";
+    echo -e "Usage: vimjournal -s <name>";
+    echo -e "Usage: vimjournal -[lR]";
+    echo -e "Usage: vimjournal -f <phrase/word>";
+    echo -e "Usage: vimjournal -r <name>";
+    echo -e "Usage: vimjournal -c <prevname>";
+    echo -e "Usage: vimjournal --makesub <subname>";
+    echo -e "Usage: vimjournal --gotosub <subname>";
+    echo -e "Usage: vimjournal --rsub <subname>";
+    echo -e "Usage: vimjournal --mergeall";
+    echo -e "Usage: vimjournal --back";
+    echo -e "-n: Create a new journal specify name in options";
+    echo -e "-e: Edit a journal; specify name in options";
+    echo -e "-E: Edit all journals with a word in their title (case sensitive)";
+    echo -e "-s: List all journals with a word in their title (case sensitive)";
+    echo -e "-l: List all journals";
+    echo -e "-f: List all jounals with a specific phrase/word in them";
+    echo -e "-r: Remove a journal";
+    echo -e "-R: Remove all journals";
+    echo -e "-c: Change journal name";
+    echo -e "--makesub: Make a folder to store journals in";
+    echo -e "--gotosub: Go to a subfolder; now all commands will only be executed within the subfolder";
+    echo -e "--rsub: Remove a subfolder";
+    echo -e "--mergeall: Merge all files in a subfolder into one";
+    echo -e "--back: Go back a directory\n";
+}
+
+if [ $arg_1 == "-n" ]; then
+    new_journal $arg_2;
+elif [ $arg_1 == "-e" ]; then
+    edit_journal $arg_2;
+elif [ $arg_1 == "-E" ]; then
+    edit_all $arg_2;
+elif [ $arg_1 == "-s" ]; then
+    find_journal $arg_2;
+elif [ $arg_1 == "-l" ]; then
+    list_journals;
+elif [ $arg_1 == "-f" ]; then
+    find_phrase $arg_2;
+elif [ $arg_1 == "-r" ]; then
+    rem_journal $arg_2;
+elif [ $arg_1 == "-R" ]; then
+    rem_all;
+elif [ $arg_1 == "-c" ]; then
+    change_name $arg_2;
+elif [ $arg_1 == "--makesub" ]; then
+    makesub $arg_2;
+elif [ $arg_1 == "--gotosub" ]; then
+    gotosub $arg_2;
+elif [ $arg_1 == "--rsub" ]; then
+    rsub $arg_2;
+elif [ $arg_1 == "--mergeall" ]; then
+    mergeall;
+elif [ $arg_1 == "--back" ]; then
+    back;
+else
+    help_msg $arg_1;
+fi
+if [ -d ~/.journals ]; then
+    echo $mega_cur_dir > ~/.journals/.starthere
+else
+    mkdir ~/.journals;
+    touch ~/.journals/.starthere;
+fi
